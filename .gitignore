@@ -75,3 +75,8 @@ dmypy.json
 .vscode/
 .idea/
 *.sublime-workspace*
+
+.env
+.env.*
+
+TeamsChatExports/
