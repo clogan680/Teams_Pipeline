@@ -68,3 +68,17 @@ source venv/bin/activate
 pip install --upgrade pip
 # Install dependencies
 pip install msal requests python-dateutil pandas python-dotenv
+
+Create a .env file with the following contents filled out according to the tenant:
+
+TENANT_ID=00000000-1111-2222-3333-444444444444
+CLIENT_ID=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+
+# Choose ONE auth method:
+
+# (A) Client secret (quick start)
+CLIENT_SECRET=your-super-secret
+
+# (B) Certificate auth (preferred for prod)
+#CLIENT_CERT_PATH=./privatekey.pem
+#CERT_THUMBPRINT=ABCDEF1234567890ABCDEF1234567890ABCDEF12
