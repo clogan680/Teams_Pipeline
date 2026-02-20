@@ -1,4 +1,4 @@
-# Teams Chat Exporter — One-File Setup & Run Guide
+# Teams Chat Exporter Setup & Run Guide
 
 Export the **entire history** of specific **Microsoft Teams *group chats*** (picked by `chatId`) to:
 - **JSONL** (one message per line, full Graph payload)
@@ -6,7 +6,6 @@ Export the **entire history** of specific **Microsoft Teams *group chats*** (pic
 - **Inline media** (`hostedContents`) saved to disk
 
 > ✅ Targets **only** the chat IDs you paste at runtime.  
-> ❌ Does **not** pull all chats for a user.
 
 ---
 
@@ -23,39 +22,11 @@ Export the **entire history** of specific **Microsoft Teams *group chats*** (pic
 ## Prerequisites
 
 - **Python 3.12+**
-- Ability to create/modify an **Entra ID (Azure AD) app registration** and **grant admin consent**
 - You must be able to obtain the **chatId(s)** (format like `19:xxxxxxxxxxxxxxxx@thread.v2`)
 
 ---
 
-## 1) Entra / Microsoft Graph Setup (one-time)
-
-1) **Register an app**
-- Entra ID → **App registrations** → **New registration**
-- Note the **Application (client) ID** and **Directory (tenant) ID**
-
-2) **Authentication**
-- Either:
-  - **Client secret**: Certificates & secrets → **New client secret** → copy the value
-  - **Certificate** (preferred): Upload your public cert; keep the private key locally (PEM)
-
-3) **API permissions (Application)**
-- App → **API permissions** → **Add a permission** → **Microsoft Graph** → **Application permissions**
-  - **Required**: `Chat.Read.All`
-  - (Optional, if you’ll export *channel* messages later): `ChannelMessage.Read.All`
-- Click **Grant admin consent** for the tenant
-
-> Some tenants gate Teams chat content behind “Protected APIs.” If you get a protected-API/forbidden error, have a tenant admin approve access for Teams chat content for this app.
-
-4) **Least-privilege alternative (optional)**
-- If you want to restrict to specific chats only, use **Resource-Specific Consent (RSC)**:
-  - Add `ChatMessage.Read.Chat`
-  - Package/install your app **into each target chat** in Teams
-  - Then run this tool (same script) — access will be scoped just to those chats
-
----
-
-## 2) Repo Setup
+## Repo Setup
 
 ```bash
 # From project root
@@ -74,11 +45,5 @@ Create a .env file with the following contents filled out according to the tenan
 TENANT_ID=00000000-1111-2222-3333-444444444444
 CLIENT_ID=aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
 
-# Choose ONE auth method:
 
-# (A) Client secret (quick start)
 CLIENT_SECRET=your-super-secret
-
-# (B) Certificate auth (preferred for prod)
-#CLIENT_CERT_PATH=./privatekey.pem
-#CERT_THUMBPRINT=ABCDEF1234567890ABCDEF1234567890ABCDEF12
