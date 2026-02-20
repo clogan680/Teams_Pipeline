@@ -3,6 +3,7 @@ import csv
 import json
 import os
 import re
+import sys
 import time
 from datetime import datetime, timezone
 from typing import Dict, Iterable, List, Optional
@@ -37,6 +38,45 @@ def write_jsonl(path: str, items: Iterable[Dict]):
     with open(path, "w", encoding="utf-8") as f:
         for it in items:
             f.write(json.dumps(it, ensure_ascii=False) + "\n")
+
+
+def format_elapsed(seconds: float) -> str:
+    total = int(seconds)
+    if total < 60:
+        return f"{total}s"
+    minutes, secs = divmod(total, 60)
+    if minutes < 60:
+        return f"{minutes}m {secs}s"
+    hours, minutes = divmod(minutes, 60)
+    return f"{hours}h {minutes}m"
+
+
+def report_progress(
+    processed: int,
+    exported: int,
+    hosted: int,
+    start_ts: float,
+    last_report: float,
+    is_tty: bool,
+    interval_s: float = 2.0,
+    every: int = 50,
+) -> float:
+    if processed == 0:
+        return last_report
+    now = time.time()
+    if (processed % every != 0) and (now - last_report < interval_s):
+        return last_report
+    elapsed = now - start_ts
+    rate = processed / elapsed if elapsed > 0 else 0.0
+    msg = (
+        f"  ... processed {processed} | exported {exported} | media {hosted} "
+        f"| {rate:.1f}/s | {format_elapsed(elapsed)}"
+    )
+    if is_tty:
+        print("\r" + msg.ljust(96), end="", flush=True)
+    else:
+        print(msg, flush=True)
+    return now
 
 
 def get_token_from_env() -> str:
@@ -210,6 +250,12 @@ def export_chat(
     print(f"Exporting chat {chat_id} ...")
     os.makedirs(out_dir, exist_ok=True)
     raw_msgs: List[Dict] = []
+    processed_count = 0
+    exported_count = 0
+    hosted_count = 0
+    start_ts = time.time()
+    last_report = start_ts
+    is_tty = sys.stdout.isatty()
     safe = re.sub(r"[^A-Za-z0-9]+", "_", chat_id)
     jsonl_path = os.path.join(out_dir, f"chat_{safe}.jsonl")
     csv_path = os.path.join(out_dir, f"chat_{safe}.csv")
@@ -218,24 +264,54 @@ def export_chat(
 
     url = f"{GRAPH}/chats/{chat_id}/messages"
     for m in graph_get_all(url, token):
+        processed_count += 1
         m["_chatId"] = chat_id
 
         if after or before:
             ts = dtparse.parse(m.get("createdDateTime", "")).astimezone(timezone.utc)
             if after and ts < after:
+                last_report = report_progress(
+                    processed_count,
+                    exported_count,
+                    hosted_count,
+                    start_ts,
+                    last_report,
+                    is_tty,
+                )
                 continue
             if before and ts > before:
+                last_report = report_progress(
+                    processed_count,
+                    exported_count,
+                    hosted_count,
+                    start_ts,
+                    last_report,
+                    is_tty,
+                )
                 continue
 
         saved_files = download_hosted_contents(chat_id, m["id"], token, media_dir)
         if saved_files:
             m["_hostedFiles"] = saved_files
+            hosted_count += len(saved_files)
 
         raw_msgs.append(m)
+        exported_count += 1
+        last_report = report_progress(
+            processed_count,
+            exported_count,
+            hosted_count,
+            start_ts,
+            last_report,
+            is_tty,
+        )
 
     write_jsonl(jsonl_path, raw_msgs)
     export_csv(csv_path, (flatten_for_csv(m) for m in raw_msgs))
 
+    if is_tty and processed_count:
+        print()
+    print(f"  -> Messages: {exported_count} exported (processed {processed_count})")
     print(f"  -> JSONL: {jsonl_path}")
     print(f"  -> CSV  : {csv_path}")
     if any(m.get("_hostedFiles") for m in raw_msgs):
